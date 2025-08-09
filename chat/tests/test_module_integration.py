@@ -187,4 +187,4 @@ class TestModuleIntegration:
         assert current_msg not in history
 
 
-from conftest import UserFactory
+from chat.tests.conftest import UserFactory
