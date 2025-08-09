@@ -1,0 +1,100 @@
+/* ===== СООБЩЕНИЯ ===== */
+.message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    max-width: 85%;
+    min-width: 200px;
+    width: fit-content;
+    border: 1px solid #e9ecef;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message.user {
+    background: #e3f2fd;
+    color: #333;
+    margin-left: auto;
+    text-align: left;
+    border-color: #bbdefb;
+}
+
+.message.assistant {
+    background: #f8f9fa;
+    color: #333;
+    border-color: #dee2e6;
+    margin-right: auto;
+}
+
+.message strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.message-content {
+    margin-top: 5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-size: 14px;
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-top: 5px;
+}
+
+.generation-status {
+    font-style: italic;
+    opacity: 0.7;
+    margin-top: 3px;
+    font-size: 12px;
+    color: #007bff;
+}
+
+/* ===== ГРАНИЦА КОНТЕКСТА ===== */
+.context-boundary {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    opacity: 0.7;
+}
+
+.context-boundary-line {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #ff6b6b, transparent);
+    border-radius: 1px;
+}
+
+.context-boundary-text {
+    padding: 0 15px;
+    font-size: 0.85rem;
+    color: #ff6b6b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    background: #fff;
+    border: 1px solid #ff6b6b;
+    border-radius: 12px;
+    padding: 4px 12px;
+}

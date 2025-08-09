@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<h2>Вход</h2>
+<p>Войдите в свой аккаунт для доступа к чату с LLM</p>
+
+<form method="post" style="max-width: 400px;">
+    {% csrf_token %}
+
+    <div style="margin-bottom: 15px;">
+        <label><strong>Имя пользователя:</strong></label>
+        {{ form.username }}
+        {% if form.username.errors %}
+        {% for error in form.username.errors %}
+        <div style="color: red; font-size: 12px;">{{ error }}</div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label><strong>Пароль:</strong></label>
+        {{ form.password }}
+        {% if form.password.errors %}
+        {% for error in form.password.errors %}
+        <div style="color: red; font-size: 12px;">{{ error }}</div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+    {% for error in form.non_field_errors %}
+    <div style="color: red; font-size: 12px; margin-bottom: 15px;">{{ error }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <button type="submit" class="btn">Войти</button>
+</form>
+
+<p style="margin-top: 20px;">Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></p>
+{% endblock %}

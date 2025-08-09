@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Архивированный чат{% endblock %}
+
+{% block content %}
+<style>
+    .message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .message.user {
+        background: #e3f2fd;
+        text-align: right;
+    }
+
+    .message.assistant {
+        background: #f3e5f5;
+    }
+
+    .message-time {
+        font-size: 12px;
+        color: #666;
+    }
+
+    .info-section {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+</style>
+
+<h2>Архивированный чат</h2>
+<a href="{% url 'archive' %}" class="btn btn-secondary">← Назад к архиву</a>
+<a href="{% url 'chat' %}" class="btn" style="margin-left: 10px;">Новый чат</a>
+
+<div class="info-section" style="margin-top: 20px;">
+    <h4>Информация о чате</h4>
+    <p><strong>Создан:</strong> {{ archived_chat.original_created_at|date:"d.m.Y H:i" }}</p>
+    <p><strong>Архивирован:</strong> {{ archived_chat.archived_at|date:"d.m.Y H:i" }}</p>
+    <p><strong>Сообщений:</strong> {{ messages|length }}</p>
+    <p><strong>Длительность:</strong> {{ archived_chat.duration }}</p>
+</div>
+
+<div style="height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #fafafa;">
+    {% for message in messages %}
+    <div class="message {{ message.role }}">
+        <div><strong>{% if message.role == 'user' %}Вы{% else %}LLM{% endif %}:</strong></div>
+        <div>{{ message.content|linebreaksbr }}</div>
+        <div class="message-time">{{ message.created_at }}</div>
+    </div>
+    {% empty %}
+    <div style="text-align: center; color: #666; padding: 50px;">
+        <p>В этом чате нет сообщений.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="info-section" style="margin-top: 20px;">
+    <h4>Статистика</h4>
+    <p><strong>Всего сообщений:</strong> {{ messages|length }}</p>
+    <p><strong>Сообщений пользователя:</strong> {{ user_messages_count }}</p>
+    <p><strong>Длительность чата:</strong> {{ archived_chat.duration }}</p>
+</div>
+{% endblock %}

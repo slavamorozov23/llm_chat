@@ -1,0 +1,10 @@
+/* ===== МОДУЛЬНАЯ СТРУКТУРА CSS ===== */
+/* Импорт всех модулей */
+@import url('modules/base.css');
+@import url('modules/chat.css');
+@import url('modules/messages.css');
+@import url('modules/forms.css');
+@import url('modules/modal.css');
+@import url('modules/responsive.css');
+
+/* Дополнительные стили, специфичные для главной страницы */

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Чат с LLM{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/chat.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- Заголовок чата -->
+    <div class="chat-header">
+        <h1>LLM Чат</h1>
+        <button id="archiveBtn" class="archive-btn">Архивировать</button>
+    </div>
+
+    <!-- Область сообщений -->
+    <div id="chatMessages" class="chat-messages">
+        {% for message in messages %}
+        {% if message.is_context_boundary %}
+        <div class="context-boundary">
+            <div class="context-boundary-line"></div>
+            <div class="context-boundary-text">Граница контекста (64000 символов)</div>
+            <div class="context-boundary-line"></div>
+        </div>
+        {% endif %}
+        <div class="message {{ message.role }}"{% if message.role == 'assistant' %} data-message-id="{{ message.id }}"{% endif %}>
+            <strong>{% if message.role == 'user' %}Вы{% else %}LLM{% endif %}:</strong>
+            <div class="message-content">{{ message.content|linebreaksbr }}</div>
+            {% if message.role == 'assistant' and message.is_generating %}
+            <div class="generation-status">
+                {% if message.generation_stage == 1 %}
+                Генерация...
+                {% elif message.generation_stage == 2 %}
+                Уточнение...
+                {% elif message.generation_stage == 3 %}
+                Проверка...
+                {% elif message.generation_stage == 0 %}
+                Готово
+                {% elif message.generation_stage == -1 %}
+                Ошибка
+                {% endif %}
+            </div>
+            {% endif %}
+            <div class="message-time">{{ message.created_at|date:"H:i" }}</div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <p>Начните разговор с LLM!</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Форма ввода -->
+    <div class="chat-input">
+        <form id="messageForm">
+            {% csrf_token %}
+            <div class="input-group">
+                <textarea id="messageInput" name="content" placeholder="Введите ваше сообщение..." rows="1"
+                    class="message-input" required aria-label="Сообщение"></textarea>
+                <button type="submit" id="sendBtn" class="btn btn-primary send-btn">
+                    Отправить
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <p>Вы уверены, что хотите архивировать текущий чат?</p>
+        <div class="modal-buttons">
+            <button id="confirmBtn" class="btn-confirm">Да, архивировать</button>
+            <button id="cancelBtn" class="btn-cancel">Отмена</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modules/MessageManager.js' %}"></script>
+<script src="{% static 'js/modules/ApiManager.js' %}"></script>
+<script src="{% static 'js/modules/UIManager.js' %}"></script>
+<script src="{% static 'js/chat.js' %}"></script>
+{% endblock %}
