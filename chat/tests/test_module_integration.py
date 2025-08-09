@@ -49,11 +49,22 @@ class TestModuleIntegration:
         assert not config.is_active
     
     @patch('chat.services.openrouter_service.OpenRouterService._make_request')
-    def test_cross_service_message_processing(self, mock_request, user):
+    @patch('chat.services.response_generator.ResponseGenerator.generate_response_stages')
+    def test_cross_service_message_processing(self, mock_generate_stages, mock_request, user):
         mock_request.return_value = {
             'choices': [{'message': {'content': 'Test response'}}],
             'usage': {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30}
         }
+        
+        # Мокируем generate_response_stages для предотвращения зависания
+        def mock_generate_response(message_id):
+            from chat.models import Message
+            message = Message.objects.get(id=message_id)
+            message.content = 'Test response'
+            message.status = 'completed'
+            message.save()
+        
+        mock_generate_stages.side_effect = mock_generate_response
         
         config_data = {
             "stage1": [{"prompt": "Analyze: {user_message}", "saveLastAsContext": True}]

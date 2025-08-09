@@ -1,3 +1,12 @@
+import os
+import django
+from django.conf import settings
+
+# Configure Django settings before importing models
+if not settings.configured:
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
+    django.setup()
+
 import pytest
 from django.contrib.auth.models import User
 import factory
@@ -5,7 +14,7 @@ from factory.django import DjangoModelFactory
 from chat.models import Chat, Message, StagedGenerationConfig, OpenRouterSettings
 
 
-pytest_plugins = ['pytest_django']
+
 
 
 class UserFactory(DjangoModelFactory):
@@ -112,8 +121,16 @@ def mock_threading(mocker):
 
 @pytest.fixture(autouse=True)
 def disable_threading_in_tests(mocker):
-    def run_sync(*args, **kwargs):
-        pass
+    class MockThread:
+        def __init__(self, target=None, args=None, kwargs=None, name=None, daemon=None):
+            self.target = target
+            self.args = args or ()
+            self.kwargs = kwargs or {}
+            self.daemon = daemon
+        
+        def start(self):
+            if self.target:
+                self.target(*self.args, **self.kwargs)
     
-    mocker.patch('chat.services.chat_service.threading.Thread', side_effect=lambda target, args: target(*args))
+    mocker.patch('chat.services.chat_service.threading.Thread', MockThread)
     return mocker

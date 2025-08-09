@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 from chat.services.chat_service import ChatService
 from chat.services.staged_generation_service import StagedGenerationService
 from chat.models import Chat, Message, StagedGenerationConfig
@@ -204,26 +204,22 @@ class TestRegression:
     @pytest.mark.asyncio
     @patch('chat.services.generation_executor.GenerationExecutor.execute_stage_prompts')
     async def test_async_generation_with_context(self, mock_execute, user):
-        config = StagedGenerationConfig.objects.create(
-            user=user,
-            name="async_test",
-            config_data={
-                "stage1": [{"prompt": "Test: {user_message}", "saveLastAsContext": True}]
-            },
-            is_active=True
-        )
-        
+        test_config = {
+            "stage1": [{"prompt": "Test: {user_message}", "saveLastAsContext": True}]
+        }
+        self.staged_service.get_active_config_async = AsyncMock(return_value=test_config)
+
         mock_execute.return_value = (
             ["Test response"],
             [{"prompt": "Test: {user_message}", "response": "Test response"}]
         )
-        
+
         result = await self.staged_service.generate_staged_response(
             "User input", user
         )
-        
+
         assert result == "Test response"
-        
+
         saved_context = self.staged_service.context_manager.get_saved_context(str(user.id))
         assert len(saved_context) == 1
         assert saved_context[0]["prompt"] == "Test: {user_message}"

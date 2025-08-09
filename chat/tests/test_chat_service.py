@@ -69,10 +69,13 @@ class TestChatService:
         assert "Test error" in str(exc_info.value)
     
     def test_archive_old_chat_creates_new(self, user, freezer):
+        # Устанавливаем начальную дату
+        freezer.move_to('2025-01-01')
         chat = self.chat_service.get_or_create_chat(user)
         original_id = chat.id
         
-        freezer.move_to('2025-01-02')
+        # Перемещаемся на 2 дня вперед (больше чем 1 день для архивации)
+        freezer.move_to('2025-01-03')
         
         new_chat = self.chat_service.get_or_create_chat(user)
         

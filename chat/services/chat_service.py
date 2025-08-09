@@ -1,3 +1,4 @@
+import threading
 from .chat_manager import ChatManager
 from .message_manager import MessageManager
 from .response_generator import ResponseGenerator
@@ -32,7 +33,6 @@ class ChatService:
             assistant_message = self.message_manager.create_assistant_message(chat)
             
             # Запускаем генерацию ответа в отдельном потоке
-            import threading
             thread = threading.Thread(
                 target=self.response_generator.generate_response_stages,
                 args=(assistant_message.id,)
