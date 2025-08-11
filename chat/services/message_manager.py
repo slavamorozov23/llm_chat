@@ -105,11 +105,11 @@ class MessageManager:
     
     def update_message_status(self, message, status_text, stage):
         
-        logger.info(f"Обновляем статус сообщения: stage={stage}, status_text='{status_text}'")
+        logger.debug(f"Обновляем статус сообщения: stage={stage}, status_text='{status_text}'")
         message.generation_stage = stage
         message.generation_status_text = status_text
         message.save(update_fields=['generation_stage', 'generation_status_text'])
-        logger.info(f"Статус сохранен в БД: generation_stage={message.generation_stage}, generation_status_text='{message.generation_status_text}'")
+        logger.debug(f"Статус сохранен в БД: generation_stage={message.generation_stage}, generation_status_text='{message.generation_status_text}'")
     
     def finalize_message(self, message, content):
         

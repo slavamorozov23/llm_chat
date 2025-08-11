@@ -26,22 +26,14 @@ def send_message(request):
             }, status=400)
         
         chat_service = ChatService()
-        assistant_message = chat_service.process_user_message(
+        message_ids = chat_service.process_user_message(
             request.user, 
             message_content
         )
         
-        # Запускаем генерацию ответа в отдельном потоке
-        def generate_async():
-            chat_service.generate_response_stages(assistant_message.id)
-        
-        thread = threading.Thread(target=generate_async)
-        thread.daemon = True
-        thread.start()
-        
         return JsonResponse({
             'success': True,
-            'message_id': assistant_message.id,
+            'message_id': message_ids['assistant_message_id'],
             'user_message': message_content
         })
         
@@ -94,6 +86,7 @@ def get_chat_messages(request):
                 'content': message.content,
                 'is_generating': message.is_generating,
                 'generation_stage': message.generation_stage,
+                'generation_status_text': message.generation_status_text,
                 'is_context_boundary': message.is_context_boundary,
                 'created_at': message.created_at.isoformat()
             })
@@ -101,6 +94,52 @@ def get_chat_messages(request):
         return JsonResponse({
             'messages': messages_data,
             'chat_id': chat.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def stop_generation(request):
+    """
+    Остановка генерации сообщения
+    """
+    try:
+        # Находим генерирующееся сообщение пользователя
+        chat = Chat.objects.filter(
+            user=request.user, 
+            is_archived=False
+        ).first()
+        
+        if not chat:
+            return JsonResponse({
+                'error': 'Активный чат не найден'
+            }, status=404)
+        
+        generating_message = Message.objects.filter(
+            chat=chat,
+            is_generating=True
+        ).first()
+        
+        if not generating_message:
+            return JsonResponse({
+                'error': 'Генерирующееся сообщение не найдено'
+            }, status=404)
+        
+        # Останавливаем генерацию
+        generating_message.is_generating = False
+        generating_message.generation_stage = -1  # Отмечаем как остановленное
+        generating_message.generation_status_text = 'Генерация остановлена пользователем'
+        if not generating_message.content.strip():
+            generating_message.content = '[Генерация была остановлена]'
+        generating_message.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Генерация остановлена'
         })
         
     except Exception as e:
@@ -120,6 +159,17 @@ def archive_chat_manually(request):
         ).first()
         
         if chat:
+            # Проверяем, есть ли генерирующиеся сообщения
+            generating_message = Message.objects.filter(
+                chat=chat,
+                is_generating=True
+            ).first()
+            
+            if generating_message:
+                return JsonResponse({
+                    'error': 'Нельзя архивировать чат во время генерации. Остановите генерацию или дождитесь её завершения.'
+                }, status=400)
+            
             chat_service.archive_chat(chat)
             # Создаем новый чат для пользователя
             new_chat = chat_service.get_or_create_chat(request.user)

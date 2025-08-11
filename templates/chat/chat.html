@@ -12,7 +12,10 @@
     <!-- Заголовок чата -->
     <div class="chat-header">
         <h1>LLM Чат</h1>
-        <button id="archiveBtn" class="archive-btn">Архивировать</button>
+        <div class="header-buttons">
+            <button id="stopGenerationBtn" class="stop-btn" style="display: none;">Остановить генерацию</button>
+            <button id="archiveBtn" class="archive-btn">Архивировать</button>
+        </div>
     </div>
 
     <!-- Область сообщений -->
@@ -25,7 +28,8 @@
             <div class="context-boundary-line"></div>
         </div>
         {% endif %}
-        <div class="message {{ message.role }}"{% if message.role == 'assistant' %} data-message-id="{{ message.id }}"{% endif %}>
+        <div class="message {{ message.role }}" {% if message.role=='assistant' %} data-message-id="{{ message.id }}" {%
+            endif %}>
             <strong>{% if message.role == 'user' %}Вы{% else %}LLM{% endif %}:</strong>
             <div class="message-content">{{ message.content|linebreaksbr }}</div>
             {% if message.role == 'assistant' and message.is_generating %}
@@ -39,8 +43,12 @@
                 {% elif message.generation_stage == 0 %}
                 Готово
                 {% elif message.generation_stage == -1 %}
-                Ошибка
+                Остановлено
                 {% endif %}
+            </div>
+            {% elif message.role == 'assistant' and message.generation_stage == -1 %}
+            <div class="generation-status stopped">
+                Генерация остановлена
             </div>
             {% endif %}
             <div class="message-time">{{ message.created_at|date:"H:i" }}</div>

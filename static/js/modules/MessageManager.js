@@ -54,30 +54,48 @@ class MessageManager {
         const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
         if (!messageDiv) return;
 
-        const now = new Date();
-        const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
-            now.getMinutes().toString().padStart(2, '0');
+        const contentDiv = messageDiv.querySelector('.message-content');
+        const statusDiv = messageDiv.querySelector('.generation-status');
 
-        // Используем переданный statusText или fallback к старой логике
-        let displayStatus = statusText;
-        if (isGenerating && !displayStatus) {
-            switch (stage) {
-                case 1: displayStatus = 'Генерация...'; break;
-                case 2: displayStatus = 'Уточнение...'; break;
-                case 3: displayStatus = 'Проверка...'; break;
-                default: displayStatus = 'Обработка...';
+        if (contentDiv) {
+            contentDiv.textContent = content;
+        }
+
+        // Обработка статуса
+        if (isGenerating) {
+            // Генерация идет - показываем статус
+            const displayStatus = statusText || (stage === 1 ? 'Генерация...' :
+                stage === 2 ? 'Уточнение...' :
+                    stage === 3 ? 'Проверка...' : 'Обработка...');
+
+            if (!statusDiv) {
+                const statusElement = document.createElement('div');
+                statusElement.className = 'generation-status';
+                statusElement.textContent = displayStatus;
+                contentDiv.after(statusElement);
+            } else {
+                statusDiv.textContent = displayStatus;
+                statusDiv.className = 'generation-status'; // Убираем stopped если был
+            }
+        } else if (stage === -1) {
+            // Генерация остановлена - показываем статус остановки
+            if (!statusDiv) {
+                const statusElement = document.createElement('div');
+                statusElement.className = 'generation-status stopped';
+                statusElement.textContent = 'Генерация остановлена';
+                contentDiv.after(statusElement);
+            } else {
+                statusDiv.className = 'generation-status stopped';
+                statusDiv.textContent = 'Генерация остановлена';
+            }
+        } else {
+            // Генерация завершена нормально - убираем статус
+            if (statusDiv) {
+                statusDiv.remove();
             }
         }
 
-        const generationStatus = isGenerating ?
-            `<div class="generation-status">${displayStatus}</div>` : '';
-
-        messageDiv.innerHTML = `
-            <strong>LLM:</strong>
-            <div class="message-content">${this.escapeHtml(content)}</div>
-            ${generationStatus}
-            <div class="message-time">${timeStr}</div>
-        `;
+        this.scrollToBottom();
     }
 
     addUserMessageFromData(message) {
@@ -115,22 +133,22 @@ class MessageManager {
         messageDiv.className = 'message assistant';
         messageDiv.setAttribute('data-message-id', message.id);
 
-        let statusText = '';
+        // Формируем блок статуса
+        let statusHtml = '';
         if (message.is_generating) {
-            // Используем generation_status_text если доступен, иначе fallback к старой логике
-            statusText = message.generation_status_text || 
-                        (message.generation_stage === 1 ? 'Генерация...' : 
-                         message.generation_stage === 2 ? 'Уточнение...' : 
-                         message.generation_stage === 3 ? 'Проверка...' : 'Обработка...');
+            const statusText = message.generation_status_text ||
+                (message.generation_stage === 1 ? 'Генерация...' :
+                    message.generation_stage === 2 ? 'Уточнение...' :
+                        message.generation_stage === 3 ? 'Проверка...' : 'Обработка...');
+            statusHtml = `<div class="generation-status">${statusText}</div>`;
+        } else if (message.generation_stage === -1) {
+            statusHtml = '<div class="generation-status stopped">Генерация остановлена</div>';
         }
-
-        const generationStatus = message.is_generating ?
-            `<div class="generation-status">${statusText}</div>` : '';
 
         messageDiv.innerHTML = `
             <strong>LLM:</strong>
             <div class="message-content">${this.escapeHtml(message.content)}</div>
-            ${generationStatus}
+            ${statusHtml}
             <div class="message-time">${timeStr}</div>
         `;
 
@@ -139,34 +157,6 @@ class MessageManager {
 
     clearMessages() {
         this.chatMessages.innerHTML = '';
-    }
-
-    updateMessageStatus(messageId, content, isGenerating, stage, statusText = '') {
-        const messageDiv = document.querySelector(`[data-message-id="${messageId}"]`);
-        if (!messageDiv) return;
-
-        const contentDiv = messageDiv.querySelector('.message-content');
-        const statusDiv = messageDiv.querySelector('.generation-status');
-        
-        if (contentDiv) {
-            contentDiv.textContent = content;
-        }
-        
-        if (isGenerating && !statusDiv) {
-            const statusElement = document.createElement('div');
-            statusElement.className = 'generation-status';
-            // Используем переданный statusText или fallback к старой логике
-            const displayStatus = statusText || (stage === 1 ? 'Генерация...' : 
-                                               stage === 2 ? 'Уточнение...' : 
-                                               stage === 3 ? 'Проверка...' : 'Обработка...');
-            statusElement.textContent = displayStatus;
-            contentDiv.after(statusElement);
-        } else if (isGenerating && statusDiv && statusText) {
-            // Обновляем текст статуса если он передан
-            statusDiv.textContent = statusText;
-        } else if (!isGenerating && statusDiv) {
-            statusDiv.remove();
-        }
     }
 
     scrollToBottom() {

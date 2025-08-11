@@ -44,6 +44,17 @@ class ApiManager {
         }
     }
 
+    async stopGeneration() {
+        const response = await fetch('/chat/api/stop-generation/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': this.getCsrfToken()
+            }
+        });
+
+        return await response.json();
+    }
+
     async archiveChat() {
         const response = await fetch('/chat/api/archive-chat/', {
             method: 'POST',

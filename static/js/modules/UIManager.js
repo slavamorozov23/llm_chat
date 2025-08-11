@@ -5,11 +5,13 @@ class UIManager {
     constructor() {
         this.messageInput = null;
         this.sendBtn = null;
+        this.stopBtn = null;
     }
 
-    initElements(messageInput, sendBtn) {
+    initElements(messageInput, sendBtn, stopBtn = null) {
         this.messageInput = messageInput;
         this.sendBtn = sendBtn;
+        this.stopBtn = stopBtn;
     }
 
     showConfirmModal(message, onConfirm) {
@@ -82,6 +84,18 @@ class UIManager {
     toggleSendButton(enabled) {
         if (this.sendBtn) {
             this.sendBtn.disabled = !enabled;
+        }
+    }
+
+    showStopButton() {
+        if (this.stopBtn) {
+            this.stopBtn.style.display = 'inline-block';
+        }
+    }
+
+    hideStopButton() {
+        if (this.stopBtn) {
+            this.stopBtn.style.display = 'none';
         }
     }
 

@@ -91,7 +91,10 @@ class ContextManager:
         stage_results: Dict, 
         saved_context_data: List = None
     ) -> str:
-        
+        """
+        Подготавливает контекст для этапа в старом формате (строка).
+        Сохранен для обратной совместимости.
+        """
         context_parts = [f"Исходный вопрос пользователя: {user_message}"]
         
         # Добавляем сохраненный контекст из предыдущей генерации
@@ -110,6 +113,61 @@ class ContextManager:
                     context_parts.append(f"  {i}. {response}")
         
         return "\n".join(context_parts)
+
+    def prepare_stage_context_as_messages(
+        self, 
+        user_message: str, 
+        context_history: List[str], 
+        stage_results: Dict, 
+        saved_context_data: List = None
+    ) -> List[Dict]:
+        """
+        Подготавливает контекст для этапа в формате массива messages.
+        
+        Формирует пошаговый диалог, где каждое взаимодействие представлено
+        как отдельные сообщения с ролями user/system/assistant.
+        
+        Returns:
+            List[Dict]: Массив сообщений в формате [{"role": "...", "content": "..."}]
+        """
+        messages = []
+        
+        # Добавляем исходный запрос пользователя
+        messages.append({
+            "role": "user",
+            "content": user_message
+        })
+        
+        # Добавляем сохраненный контекст из предыдущей генерации
+        if saved_context_data:
+            for context_item in saved_context_data:
+                # Промпт как system message (это была инструкция системы)
+                messages.append({
+                    "role": "system",
+                    "content": context_item['prompt']
+                })
+                # Ответ как assistant message
+                messages.append({
+                    "role": "assistant", 
+                    "content": context_item['response']
+                })
+        
+        # Добавляем результаты предыдущих этапов
+        if stage_results:
+            for stage_name, responses in stage_results.items():
+                for i, response in enumerate(responses, 1):
+                    # Этап как system instruction
+                    messages.append({
+                        "role": "system",
+                        "content": stage_name.lower()  # Например: "умнож полученное число на 2"
+                    })
+                    # Ответ этапа как assistant response
+                    messages.append({
+                        "role": "assistant",
+                        "content": response
+                    })
+        
+        return messages
     
     def extract_save_context_data(self, prompts: List[Dict], responses: List[str]) -> List[Dict]:
         

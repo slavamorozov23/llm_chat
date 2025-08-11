@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 from asgiref.sync import sync_to_async
 
 from .config_manager import ConfigManager
@@ -61,12 +61,10 @@ class StagedGenerationService:
             for i, stage_name in enumerate(stage_names, 1):
                 stage_prompts = config[stage_name]
                 
-                # Обновляем статус через callback
                 if status_callback:
                     status_text = f"Этап {i}: {stage_name}"
                     await sync_to_async(status_callback)(status_text, i)
                 
-                # Подготавливаем контекст с результатами предыдущих этапов и сохраненным контекстом
                 stage_context = self.context_manager.prepare_stage_context(
                     user_message, 
                     context_history, 
@@ -74,38 +72,147 @@ class StagedGenerationService:
                     saved_context_data
                 )
                 
-                # Выполняем промпты этапа асинхронно и независимо друг от друга
-                stage_responses, stage_saved_context = await self.generation_executor.execute_stage_prompts(
+                # stage_responses_data - это список словарей
+                stage_responses_data, stage_saved_context = await self.generation_executor.execute_stage_prompts(
                     stage_prompts, 
                     stage_context
                 )
                 
-                # Сохраняем результаты этапа для следующих этапов
-                stage_results[stage_name] = stage_responses
-                context_history.extend(stage_responses)
+                # Фильтруем ответы, которые не должны идти в межэтапный контекст
+                responses_for_next_stage = [
+                    item['response_text'] for item in stage_responses_data 
+                    if not item.get('block_outside_context', False)
+                ]
                 
-                # Добавляем контекст для сохранения на следующую генерацию
+                # Все ответы этапа (только текст) сохраняем для возможного финального вывода
+                all_stage_response_texts = [item['response_text'] for item in stage_responses_data]
+                
+                stage_results[stage_name] = all_stage_response_texts
+                context_history.extend(responses_for_next_stage) # В историю добавляем только разрешенные
+                
                 new_saved_context.extend(stage_saved_context)
             
-            # Сохраняем новый контекст для следующей генерации
             self.context_manager.save_context(user_id, new_saved_context)
             
-            # Возвращаем результат последнего этапа
             final_stage = stage_names[-1]
             final_responses = stage_results[final_stage]
             
-            # Если в финальном этапе несколько ответов, объединяем их
             if len(final_responses) == 1:
                 return final_responses[0]
             else:
                 return "\n\n".join(final_responses)
                 
         except Exception as e:
-            print(f"Ошибка поэтапной генерации: {e}")
+            logger.error(f"Ошибка поэтапной генерации: {e}")
             # В случае ошибки возвращаем обычную генерацию
             return await sync_to_async(self.openrouter.generate_response)(user_message)
     
 
+    
+    async def generate_staged_response_detailed(self, user_message: str, user, status_callback=None) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Выполняет поэтапную генерацию с детальным логированием каждого запроса к LLM.
+        Возвращает финальный ответ и список данных по этапам с полными детальными ответами.
+        """
+        config = await self.get_active_config_async(user)
+        
+        # Если нет конфигурации, выполняем один детальный запрос, чтобы в raw_response были полные данные
+        if not config or not self.validate_config(config):
+            try:
+                detailed = await sync_to_async(self.openrouter.generate_response_detailed)(
+                    user_message,
+                    None,
+                    "Standard generation",
+                    "Primary response generation"
+                )
+                if detailed.get('success') and detailed.get('response'):
+                    final_text = detailed['response']['response_content']
+                else:
+                    final_text = await sync_to_async(self.openrouter.generate_response)(user_message)
+                staged_data = [{
+                    "stage_name": "Standard generation",
+                    "detailed_responses": [detailed]
+                }]
+                return final_text, staged_data
+            except Exception as e:
+                logger.error(f"Fallback detailed generation error: {e}")
+                final_text = await sync_to_async(self.openrouter.generate_response)(user_message)
+                return final_text, []
+        
+        try:
+            stage_names = list(config.keys())
+            context_history: List[str] = []
+            stage_results: Dict[str, List[str]] = {}
+            user_id = str(user.id)
+            saved_context_data = self.context_manager.clear_saved_context(user_id)
+            new_saved_context: List[Dict] = []
+            staged_detailed_data: List[Dict[str, Any]] = []
+            
+            for i, stage_name in enumerate(stage_names, 1):
+                stage_prompts = config[stage_name]
+                if status_callback:
+                    status_text = f"Этап {i}: {stage_name}"
+                    await sync_to_async(status_callback)(status_text, i)
+                
+                stage_context = self.context_manager.prepare_stage_context(
+                    user_message,
+                    context_history,
+                    stage_results,
+                    saved_context_data
+                )
+                
+                responses_data, stage_saved_context, detailed_responses = await self.generation_executor.execute_stage_prompts_detailed(
+                    stage_prompts,
+                    stage_context,
+                    stage_name
+                )
+                
+                responses_for_next_stage = [
+                    item['response_text'] for item in responses_data
+                    if not item.get('block_outside_context', False)
+                ]
+                all_stage_response_texts = [item['response_text'] for item in responses_data]
+                stage_results[stage_name] = all_stage_response_texts
+                context_history.extend(responses_for_next_stage)
+                new_saved_context.extend(stage_saved_context)
+                
+                staged_detailed_data.append({
+                    "stage_name": stage_name,
+                    "detailed_responses": detailed_responses
+                })
+            
+            self.context_manager.save_context(user_id, new_saved_context)
+            final_stage = stage_names[-1]
+            final_responses = stage_results[final_stage]
+            if len(final_responses) == 1:
+                final_response = final_responses[0]
+            else:
+                final_response = "\n\n".join(final_responses)
+            return final_response, staged_detailed_data
+        except Exception as e:
+            logger.error(f"Ошибка поэтапной генерации (детально): {e}")
+            # Пытаемся вернуть детальный лог хотя бы одного стандартного запроса
+            try:
+                detailed = await sync_to_async(self.openrouter.generate_response_detailed)(
+                    user_message,
+                    None,
+                    "Fallback standard generation",
+                    "Direct user request"
+                )
+                if detailed.get('success') and detailed.get('response'):
+                    final_text = detailed['response']['response_content']
+                else:
+                    final_text = await sync_to_async(self.openrouter.generate_response)(user_message)
+                staged_data = [{
+                    "stage_name": "Fallback standard generation",
+                    "detailed_responses": [detailed]
+                }]
+                return final_text, staged_data
+            except Exception as inner_e:
+                logger.error(f"Fallback detailed generation failed: {inner_e}")
+                final_text = await sync_to_async(self.openrouter.generate_response)(user_message)
+                return final_text, []
+    
     
     def create_config(self, user, name: str, config_data: Dict[str, Any]):
         

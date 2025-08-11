@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/send-message/', views.send_message, name='send_message'),
     path('api/message-status/<int:message_id>/', views.get_message_status, name='message_status'),
     path('api/chat-messages/', views.get_chat_messages, name='chat_messages'),
+    path('api/stop-generation/', views.stop_generation, name='stop_generation'),
     path('api/archive-chat/', views.archive_chat_manually, name='archive_chat_manually'),
     
 

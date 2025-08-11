@@ -26,6 +26,12 @@
     font-weight: normal;
 }
 
+.header-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 .archive-btn {
     background: #dc3545;
     color: white;
@@ -39,6 +45,21 @@
 
 .archive-btn:hover {
     background: #c82333;
+}
+
+.stop-btn {
+    background: #fd7e14;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.stop-btn:hover {
+    background: #e8690b;
 }
 
 /* ===== ОБЛАСТЬ СООБЩЕНИЙ ===== */

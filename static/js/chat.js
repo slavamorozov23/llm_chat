@@ -19,10 +19,11 @@ class ChatManager {
     }
 
     initElements() {
-        this.chatMessages = document.getElementById('chatMessages');
-        this.messageForm = document.getElementById('messageForm');
         this.messageInput = document.getElementById('messageInput');
         this.sendBtn = document.getElementById('sendBtn');
+        this.stopBtn = document.getElementById('stopGenerationBtn');
+        this.chatMessages = document.getElementById('chatMessages');
+        this.messageForm = document.getElementById('messageForm');
         this.archiveBtn = document.getElementById('archiveBtn');
     }
 
@@ -30,12 +31,13 @@ class ChatManager {
         this.messageManager = new MessageManager(this.chatMessages);
         this.apiManager = new ApiManager();
         this.uiManager = new UIManager();
-        this.uiManager.initElements(this.messageInput, this.sendBtn);
+        this.uiManager.initElements(this.messageInput, this.sendBtn, this.stopBtn);
     }
 
     bindEvents() {
         this.messageForm.addEventListener('submit', (e) => this.handleSubmit(e));
         this.archiveBtn.addEventListener('click', () => this.archiveChat());
+        this.stopBtn.addEventListener('click', () => this.stopGeneration());
 
         // Делегируем управление input событиями UI менеджеру
         this.uiManager.bindInputEvents(() => {
@@ -76,6 +78,7 @@ class ChatManager {
         this.isGenerating = true;
         this.currentMessageId = messageId;
         this.uiManager.toggleSendButton(false);
+        this.uiManager.showStopButton();
 
         this.apiManager.startPolling(messageId, (data) => {
             this.messageManager.updateMessageStatus(messageId, data.content, data.is_generating, data.generation_stage, data.generation_status_text);
@@ -91,6 +94,7 @@ class ChatManager {
         this.isGenerating = false;
         this.currentMessageId = null;
         this.uiManager.toggleSendButton(true);
+        this.uiManager.hideStopButton();
     }
 
     async loadMessages() {
@@ -103,9 +107,9 @@ class ChatManager {
 
                 data.messages.forEach(message => {
                     if (message.role === 'user') {
-                        this.addUserMessageFromData(message);
+                        this.messageManager.addUserMessageFromData(message);
                     } else {
-                        this.addAssistantMessageFromData(message);
+                        this.messageManager.addAssistantMessageFromData(message);
                     }
                 });
 
@@ -168,9 +172,32 @@ class ChatManager {
         this.chatMessages.appendChild(messageDiv);
     }
 
+    async stopGeneration() {
+        if (!this.isGenerating) {
+            this.uiManager.showMessage('Генерация не выполняется');
+            return;
+        }
+
+        try {
+            const data = await this.apiManager.stopGeneration();
+
+            if (data.success) {
+                this.uiManager.showMessage('Генерация остановлена');
+                this.stopPolling();
+                // Обновляем сообщения после остановки
+                setTimeout(() => this.loadMessages(), 500);
+            } else {
+                this.uiManager.showMessage('Ошибка: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Ошибка остановки генерации:', error);
+            this.uiManager.showMessage('Произошла ошибка при остановке генерации');
+        }
+    }
+
     async archiveChat() {
         if (this.isGenerating) {
-            this.uiManager.showMessage('Дождитесь завершения генерации ответа');
+            this.uiManager.showMessage('Остановите генерацию или дождитесь её завершения перед архивированием');
             return;
         }
 
